@@ -223,10 +223,11 @@ function Home() {
           ) : (
             <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
-                <article
-                  key={product._id}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
-                >
+                <Link
+  key={product._id}
+  to={`/products/${product._id}`}
+  className="block overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+>
                   {product.images?.[0] ? (
                     <img
                       src={product.images[0]}
@@ -265,7 +266,7 @@ function Home() {
                       Seller: {product.seller?.name || "Campus member"}
                     </p>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}
