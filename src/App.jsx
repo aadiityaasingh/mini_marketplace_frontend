@@ -8,6 +8,10 @@ import Login from "./pages/Login";
 import CreateListing from "./pages/CreateListing";
 import ProductDetails from "./pages/ProductDetails";
 import MyListings from "./pages/MyListings";
+import EditListing from "./pages/EditListing";
+import Wishlist from "./pages/Wishlist";
+import Chat from "./pages/Chat.jsx";
+import Chats from "./pages/Chats.jsx";
 
 const categories = [
   { name: "Books", icon: "📚", value: "books", color: "bg-blue-50" },
@@ -82,6 +86,10 @@ function App() {
       <Route path="/create-listing" element={<CreateListing />} />
       <Route path="/products/:id" element={<ProductDetails />} />
       <Route path="/my-listings" element={<MyListings />} />
+      <Route path="/products/:id/edit" element={<EditListing />} />
+      <Route path="/wishlist" element={<Wishlist />} />
+      <Route path="/chats/:conversationId" element={<Chat />} />
+      <Route path="/chats" element={<Chats />} />
     </Routes>
   );
 }
