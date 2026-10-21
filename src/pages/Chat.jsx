@@ -6,6 +6,14 @@ import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { socket } from "../api/socket";
 
+function getId(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    return String(value._id || value.id || "");
+  }
+  return String(value);
+}
+
 function Chat() {
   const { conversationId } = useParams();
   const { user } = useAuth();
@@ -17,33 +25,101 @@ function Chat() {
   const [sending, setSending] = useState(false);
 
   const bottomRef = useRef(null);
+  const currentUserId = getId(user?._id || user?.id);
 
-  // Add a message only if its MongoDB ID isn't already present.
+  // Insert a message only once, or merge newer readBy information.
   const addMessageIfNew = (newMessage) => {
+    if (!newMessage?._id) return;
+
     setMessages((previousMessages) => {
-      const alreadyExists = previousMessages.some(
-        (message) => String(message._id) === String(newMessage._id)
+      const id = String(newMessage._id);
+      const index = previousMessages.findIndex(
+        (message) => String(message._id) === id
       );
 
-      if (alreadyExists) return previousMessages;
+      if (index === -1) {
+        return [...previousMessages, newMessage].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime()
+        );
+      }
 
-      return [...previousMessages, newMessage];
+      const updated = [...previousMessages];
+      const existing = updated[index];
+
+      // Preserve receipt IDs when the REST response and socket
+      // event contain different versions of the same message.
+      const readBy = new Set([
+        ...(existing.readBy || []).map(getId),
+        ...(newMessage.readBy || []).map(getId),
+      ]);
+
+      updated[index] = {
+        ...existing,
+        ...newMessage,
+        readBy: Array.from(readBy),
+      };
+
+      return updated;
     });
   };
 
-  // Connect to Socket.IO and join the authorized conversation room.
+  // Mark incoming messages as read.
+  const markAsRead = async () => {
+    try {
+      await api.patch(`/chats/${conversationId}/read`);
+    } catch (error) {
+      console.error(
+        "Unable to mark messages as read:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  // Socket connection, room membership, live messages, and receipts.
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !currentUserId) return;
 
     const handleNewMessage = (message) => {
-      if (
-        String(message.conversation?._id || message.conversation) !==
-        String(conversationId)
-      ) {
-        return;
-      }
+      const messageConversationId = getId(message.conversation);
+
+      if (messageConversationId !== String(conversationId)) return;
 
       addMessageIfNew(message);
+
+      const senderId = getId(message.sender);
+
+      // Mark messages from the other participant as read while
+      // this conversation is open.
+      if (senderId && senderId !== currentUserId) {
+        markAsRead();
+      }
+    };
+
+    const handleMessagesRead = ({ conversationId: readConversationId, readerId }) => {
+      if (String(readConversationId) !== String(conversationId)) return;
+
+      const reader = getId(readerId);
+      if (!reader) return;
+
+      // The other participant read our messages.
+      setMessages((previousMessages) =>
+        previousMessages.map((message) => {
+          const senderId = getId(message.sender);
+
+          if (senderId !== currentUserId) return message;
+
+          const readBy = (message.readBy || []).map(getId);
+
+          if (readBy.includes(reader)) return message;
+
+          return {
+            ...message,
+            readBy: [...(message.readBy || []), reader],
+          };
+        })
+      );
     };
 
     const handleConnect = () => {
@@ -53,11 +129,16 @@ function Chat() {
             "Unable to join chat room:",
             response?.message
           );
+          return;
         }
+
+        // Mark earlier incoming messages as read after joining.
+        markAsRead();
       });
     };
 
     socket.on("new-message", handleNewMessage);
+    socket.on("messages-read", handleMessagesRead);
     socket.on("connect", handleConnect);
 
     if (!socket.connected) {
@@ -68,12 +149,12 @@ function Chat() {
 
     return () => {
       socket.off("new-message", handleNewMessage);
+      socket.off("messages-read", handleMessagesRead);
       socket.off("connect", handleConnect);
-      socket.disconnect();
     };
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
-  // Load conversation details and existing message history.
+  // Load conversation details and message history.
   useEffect(() => {
     let cancelled = false;
 
@@ -106,7 +187,6 @@ function Chat() {
 
         const history = messagesResponse.data.messages || [];
 
-        // Merge history with any messages received while loading.
         setMessages((previousMessages) => {
           const merged = new Map();
 
@@ -115,7 +195,23 @@ function Chat() {
           });
 
           previousMessages.forEach((message) => {
-            merged.set(String(message._id), message);
+            const id = String(message._id);
+            const existing = merged.get(id);
+
+            if (existing) {
+              merged.set(id, {
+                ...existing,
+                ...message,
+                readBy: Array.from(
+                  new Set([
+                    ...(existing.readBy || []).map(getId),
+                    ...(message.readBy || []).map(getId),
+                  ])
+                ),
+              });
+            } else {
+              merged.set(id, message);
+            }
           });
 
           return Array.from(merged.values()).sort(
@@ -124,6 +220,9 @@ function Chat() {
               new Date(b.createdAt).getTime()
           );
         });
+
+        // Mark messages already received as read.
+        await api.patch(`/chats/${conversationId}/read`);
       } catch (error) {
         if (!cancelled) {
           toast.error(
@@ -164,7 +263,6 @@ function Chat() {
 
       const savedMessage = response.data.data;
 
-      // The socket event and REST response may contain the same message.
       addMessageIfNew(savedMessage);
       setText("");
     } catch (error) {
@@ -199,15 +297,10 @@ function Chat() {
     );
   }
 
-  const buyerId =
-    typeof conversation.buyer === "object"
-      ? conversation.buyer?._id
-      : conversation.buyer;
-
-  const currentUserId = user?._id || user?.id;
+  const buyerId = getId(conversation.buyer);
 
   const otherPerson =
-    String(buyerId) === String(currentUserId)
+    buyerId === currentUserId
       ? conversation.seller
       : conversation.buyer;
 
@@ -252,13 +345,16 @@ function Chat() {
             </div>
           ) : (
             messages.map((message) => {
-              const senderId =
-                typeof message.sender === "object"
-                  ? message.sender?._id
-                  : message.sender;
+              const senderId = getId(message.sender);
+              const isMine = senderId === currentUserId;
 
-              const isMine =
-                String(senderId) === String(currentUserId);
+              const readBy = (message.readBy || []).map(getId);
+              const isRead =
+                isMine &&
+                readBy.some(
+                  (readerId) =>
+                    readerId && readerId !== currentUserId
+                );
 
               return (
                 <div
@@ -278,21 +374,35 @@ function Chat() {
                       {message.text}
                     </p>
 
-                    <p
-                      className={`mt-1 text-right text-xs ${
+                    <div
+                      className={`mt-1 flex items-center justify-end gap-1 text-xs ${
                         isMine ? "text-indigo-100" : "text-slate-500"
                       }`}
                     >
-                      {message.createdAt
-                        ? new Date(message.createdAt).toLocaleString(
-                            "en-IN",
-                            {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            }
-                          )
-                        : ""}
-                    </p>
+                      <span>
+                        {message.createdAt
+                          ? new Date(message.createdAt).toLocaleString(
+                              "en-IN",
+                              {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }
+                            )
+                          : ""}
+                      </span>
+
+                      {isMine && (
+                        <span
+                          title={isRead ? "Read" : "Sent"}
+                          aria-label={isRead ? "Read" : "Sent"}
+                          className={`ml-1 font-bold ${
+                            isRead ? "text-cyan-200" : "text-indigo-100"
+                          }`}
+                        >
+                          {isRead ? "✓✓" : "✓"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
