@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { socket } from "../api/socket";
 
 const categories = [
   { label: "All items", value: "" },
@@ -18,67 +19,197 @@ const categories = [
 function Home() {
   const { user, isAuthenticated, logout } = useAuth();
 
-const [products, setProducts] = useState([]);
-const [search, setSearch] = useState("");
-const [category, setCategory] = useState("");
-const [listingType, setListingType] = useState("");
-const [condition, setCondition] = useState("");
-const [sort, setSort] = useState("newest");
+  const navigate = useNavigate();
 
-const [page, setPage] = useState(1);
-const [pagination, setPagination] = useState(null);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState("");
-const [retryCount, setRetryCount] = useState(0);
+  const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [listingType, setListingType] = useState("");
+  const [condition, setCondition] = useState("");
+  const [sort, setSort] = useState("newest");
+
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  const fetchProducts = async () => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const params = {
+          page,
+          limit: 8,
+          sort,
+        };
+
+        if (search.trim()) params.search = search.trim();
+        if (category) params.category = category;
+        if (listingType) params.listingType = listingType;
+        if (condition) params.condition = condition;
+
+        const response = await api.get("/products", { params });
+
+        if (!cancelled) {
+          setProducts(response.data.products || []);
+          setPagination(response.data.pagination || null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err.response?.data?.message ||
+              "Unable to load products. Please try again.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [search, category, listingType, condition, sort, page, retryCount]);
+
+  // Fetch unread notification count and listen for real-time notifications
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setNotificationOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get("/notifications/unread-count");
+
+        if (!cancelled) {
+          setUnreadCount(response.data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error("Unable to fetch unread notification count:", error);
+      }
+    };
+
+    const handleNewNotification = (notification) => {
+      setNotifications((previous) => {
+        if (previous.some((item) => item._id === notification._id)) {
+          return previous;
+        }
+
+        return [notification, ...previous].slice(0, 50);
+      });
+
+      setUnreadCount((count) => count + 1);
+
+      toast.info(notification.title || "You have a new notification.");
+    };
+
+    fetchUnreadCount();
+
+    socket.on("notification:new", handleNewNotification);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return () => {
+      cancelled = true;
+      socket.off("notification:new", handleNewNotification);
+    };
+  }, [isAuthenticated]);
+
+  // Fetch notifications when the dropdown is opened
+  const fetchNotifications = async () => {
     try {
-      setLoading(true);
-      setError("");
+      setNotificationsLoading(true);
 
-      const params = {
-        page,
-        limit: 8,
-        sort,
-      };
+      const response = await api.get("/notifications");
 
-      if (search.trim()) params.search = search.trim();
-      if (category) params.category = category;
-      if (listingType) params.listingType = listingType;
-      if (condition) params.condition = condition;
-
-      const response = await api.get("/products", { params });
-
-      if (!cancelled) {
-        setProducts(response.data.products || []);
-        setPagination(response.data.pagination || null);
-      }
-    } catch (err) {
-      if (!cancelled) {
-        setError(
-          err.response?.data?.message ||
-            "Unable to load products. Please try again.",
-        );
-      }
+      setNotifications(response.data.notifications || []);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Unable to load notifications.",
+      );
     } finally {
-      if (!cancelled) {
-        setLoading(false);
-      }
+      setNotificationsLoading(false);
     }
   };
 
-  fetchProducts();
+  const handleNotificationToggle = () => {
+    const nextOpen = !notificationOpen;
 
-  return () => {
-    cancelled = true;
+    setNotificationOpen(nextOpen);
+
+    if (nextOpen) {
+      fetchNotifications();
+    }
   };
-}, [search, category, listingType, condition, sort, page, retryCount]); 
+
+  // Mark one notification as read and open its destination
+  const handleNotificationClick = async (notification) => {
+    if (!notification.isRead) {
+      try {
+        await api.patch(`/notifications/${notification._id}/read`);
+
+        setNotifications((previous) =>
+          previous.map((item) =>
+            item._id === notification._id ? { ...item, isRead: true } : item,
+          ),
+        );
+
+        setUnreadCount((count) => Math.max(0, count - 1));
+      } catch (error) {
+        toast.error(
+          error.response?.data?.message ||
+            "Unable to mark notification as read.",
+        );
+        return;
+      }
+    }
+
+    setNotificationOpen(false);
+    navigate(notification.link || "/notifications");
+  };
+
+  // Mark every notification as read
+  const handleMarkAllRead = async () => {
+    try {
+      await api.patch("/notifications/read-all");
+
+      setNotifications((previous) =>
+        previous.map((item) => ({ ...item, isRead: true })),
+      );
+
+      setUnreadCount(0);
+      toast.success("All notifications marked as read.");
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Unable to update notifications.",
+      );
+    }
+  };
 
   const handleLogout = () => {
+    socket.disconnect();
     logout();
     toast.success("You have been logged out.");
   };
@@ -125,7 +256,150 @@ const [retryCount, setRetryCount] = useState(0);
                 >
                   ❤️ Wishlist
                 </Link>
-                <Link to="/chats">Messages</Link>
+                <Link
+                  to="/chats"
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Messages
+                </Link>
+
+                {/* Notification Bell */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={handleNotificationToggle}
+                    aria-label={`Notifications, ${unreadCount} unread`}
+                    aria-expanded={notificationOpen}
+                    className="relative flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <span className="text-lg" aria-hidden="true">
+                      🔔
+                    </span>
+                    <span className="hidden sm:inline">Notifications</span>
+
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notificationOpen && (
+                    <>
+                      {/* Click outside the dropdown to close it */}
+                      <button
+                        type="button"
+                        aria-label="Close notifications"
+                        onClick={() => setNotificationOpen(false)}
+                        className="fixed inset-0 z-30 cursor-default"
+                      />
+
+                      <div className="absolute right-0 z-40 mt-3 w-[min(90vw,380px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                          <div>
+                            <h3 className="font-bold text-slate-900">
+                              Notifications
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              {unreadCount} unread
+                            </p>
+                          </div>
+
+                          {unreadCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleMarkAllRead}
+                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            >
+                              Mark all read
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-96 overflow-y-auto">
+                          {notificationsLoading ? (
+                            <p className="p-6 text-center text-sm text-slate-500">
+                              Loading notifications...
+                            </p>
+                          ) : notifications.length === 0 ? (
+                            <div className="p-8 text-center">
+                              <div className="text-3xl">🔔</div>
+                              <p className="mt-3 font-semibold text-slate-700">
+                                You're all caught up
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500">
+                                New messages and updates will appear here.
+                              </p>
+                            </div>
+                          ) : (
+                            notifications.map((notification) => (
+                              <button
+                                key={notification._id}
+                                type="button"
+                                onClick={() =>
+                                  handleNotificationClick(notification)
+                                }
+                                className={`flex w-full gap-3 border-b border-slate-100 px-4 py-4 text-left transition hover:bg-indigo-50 ${
+                                  notification.isRead
+                                    ? "bg-white"
+                                    : "bg-indigo-50/60"
+                                }`}
+                              >
+                                <span className="mt-1 text-xl">
+                                  {notification.type === "new_message"
+                                    ? "💬"
+                                    : notification.type === "listing_update"
+                                      ? "🛍️"
+                                      : "🔔"}
+                                </span>
+
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex items-start justify-between gap-2">
+                                    <span className="text-sm font-bold text-slate-800">
+                                      {notification.title}
+                                    </span>
+
+                                    {!notification.isRead && (
+                                      <span
+                                        className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600"
+                                        aria-label="Unread"
+                                      />
+                                    )}
+                                  </span>
+
+                                  <span className="mt-1 block break-words text-sm text-slate-600">
+                                    {notification.message}
+                                  </span>
+
+                                  <span className="mt-2 block text-xs text-slate-400">
+                                    {notification.createdAt
+                                      ? new Date(
+                                          notification.createdAt,
+                                        ).toLocaleString("en-IN", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })
+                                      : ""}
+                                  </span>
+                                </span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        <div className="border-t border-slate-100 p-3">
+                          <Link
+                            to="/notifications"
+                            onClick={() => setNotificationOpen(false)}
+                            className="block rounded-lg px-3 py-2 text-center text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
+                          >
+                            View all notifications
+                          </Link>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 <button
                   onClick={handleLogout}
