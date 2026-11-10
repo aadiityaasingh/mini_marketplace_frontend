@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useCallback } from "react";
 import api from "../api/axios";
 
 const AuthContext = createContext(null);
@@ -16,6 +17,31 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(
     () => localStorage.getItem("mit_token") || null
   );
+
+  const updateUser = useCallback((newUserData) => {
+    setUser((prev) => {
+      const updated = typeof newUserData === "function" ? newUserData(prev) : { ...prev, ...newUserData };
+      try {
+        localStorage.setItem("mit_user", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to sync user to localStorage:", e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const response = await api.get("/users/me");
+      if (response.data?.user) {
+        updateUser(response.data.user);
+        return response.data;
+      }
+    } catch (error) {
+      console.error("Error refreshing user profile:", error);
+      throw error;
+    }
+  }, [updateUser]);
 
   const register = async ({ name, email, password }) => {
     const response = await api.post("/auth/register", {
@@ -54,7 +80,16 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, register, login, logout, isAuthenticated: Boolean(token) }}
+      value={{
+        user,
+        token,
+        register,
+        login,
+        logout,
+        updateUser,
+        refreshProfile,
+        isAuthenticated: Boolean(token),
+      }}
     >
       {children}
     </AuthContext.Provider>

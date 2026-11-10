@@ -5,30 +5,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
-
-const categories = [
-  { value: "books", label: "Books" },
-  { value: "electronics", label: "Electronics" },
-  { value: "hostel-essentials", label: "Hostel essentials" },
-  { value: "clothing", label: "Clothing" },
-  { value: "furniture", label: "Furniture" },
-  { value: "sports", label: "Sports" },
-  { value: "other", label: "Other" },
-];
-
-const conditions = [
-  { value: "new", label: "New" },
-  { value: "like-new", label: "Like new" },
-  { value: "good", label: "Good" },
-  { value: "fair", label: "Fair" },
-];
-
-const listingTypes = [
-  { value: "sale", label: "Sell" },
-  { value: "rent", label: "Rent" },
-  { value: "exchange", label: "Exchange" },
-  { value: "donation", label: "Donate" },
-];
+import {
+  CATEGORIES as categories,
+  CONDITIONS as conditions,
+  LISTING_TYPES as listingTypes,
+  CAMPUS_LOCATIONS,
+} from "../constants/marketplace";
 
 const inputClass =
   "mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
@@ -462,7 +444,12 @@ function EditListing() {
             >
               {saving ? "Saving changes..." : "Save Changes"}
             </button>
-          </form>
+            <datalist id="campus-locations-list">
+                {CAMPUS_LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc} />
+                ))}
+              </datalist>
+            </form>
         </section>
       </div>
     </main>

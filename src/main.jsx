@@ -7,13 +7,16 @@ import "./index.css";
 
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
-        <ToastContainer position="top-right" autoClose={3000} />
+        <NotificationProvider>
+          <App />
+          <ToastContainer position="top-right" autoClose={4000} />
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>
