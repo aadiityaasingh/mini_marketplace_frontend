@@ -256,7 +256,7 @@ export default function Home() {
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
         <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4">
           <Link to="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
-            <span className="text-2xl">🎓</span>
+            <img src="/logo.png" alt="MIT Mini Market Logo" className="h-10 w-10 object-contain" />
             <span>MIT Mini Market</span>
           </Link>
 
@@ -1129,7 +1129,10 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-slate-900 px-5 py-8 text-center text-sm text-slate-400">
-        <p className="font-semibold text-slate-300">🎓 MIT Mini Market · College Campus Marketplace</p>
+        <div className="flex items-center justify-center gap-2 font-semibold text-slate-300">
+          <img src="/logo.png" alt="MIT Mini Market Logo" className="h-6 w-6 object-contain" />
+          <span>MIT Mini Market · College Campus Marketplace</span>
+        </div>
         <p className="mt-1 text-xs text-slate-500">Built for students to buy, sell, rent, and share responsibly.</p>
       </footer>
     </div>

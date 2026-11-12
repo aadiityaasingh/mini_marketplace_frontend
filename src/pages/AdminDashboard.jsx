@@ -321,8 +321,9 @@ export default function AdminDashboard() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-xl font-extrabold text-indigo-700">
-              🎓 MIT Mini Market
+            <Link to="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
+              <img src="/logo.png" alt="MIT Mini Market Logo" className="h-8 w-8 object-contain" />
+              <span>MIT Mini Market</span>
             </Link>
             <span className="rounded-full bg-indigo-100 px-3 py-0.5 text-xs font-black uppercase tracking-wider text-indigo-700">
               Admin Panel

@@ -50,8 +50,8 @@ function Login() {
         </Link>
 
         <div className="mt-7">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-2xl">
-            🎓
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 p-1 shadow-xs">
+            <img src="/logo.png" alt="MIT Mini Market Logo" className="h-10 w-10 object-contain" />
           </div>
 
           <h1 className="mt-5 text-3xl font-extrabold text-slate-900">

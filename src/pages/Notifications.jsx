@@ -108,8 +108,9 @@ export default function Notifications() {
       {/* Top Navbar */}
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <Link to="/" className="text-xl font-extrabold text-indigo-700">
-            🎓 MIT Mini Market
+          <Link to="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
+            <img src="/logo.png" alt="MIT Mini Market Logo" className="h-8 w-8 object-contain" />
+            <span>MIT Mini Market</span>
           </Link>
 
           <div className="flex items-center gap-3">

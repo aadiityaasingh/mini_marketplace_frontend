@@ -86,6 +86,16 @@ export default function Chats() {
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+        <Link to="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
+          <img src="/logo.png" alt="MIT Mini Market Logo" className="h-8 w-8 object-contain" />
+          <span>MIT Mini Market</span>
+        </Link>
+        <Link to="/" className="text-sm font-semibold text-slate-600 hover:text-indigo-600">
+          ← Back to Marketplace
+        </Link>
+      </div>
+
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Your Chats</h1>

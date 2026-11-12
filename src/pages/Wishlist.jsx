@@ -119,7 +119,17 @@ function Wishlist() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-6 py-12">
+    <main className="mx-auto min-h-screen max-w-7xl px-6 py-8">
+      <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4">
+        <Link to="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
+          <img src="/logo.png" alt="MIT Mini Market Logo" className="h-8 w-8 object-contain" />
+          <span>MIT Mini Market</span>
+        </Link>
+        <Link to="/" className="text-sm font-semibold text-slate-600 hover:text-indigo-600">
+          ← Back to Marketplace
+        </Link>
+      </div>
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">
           My Wishlist ❤️

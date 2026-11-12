@@ -214,12 +214,18 @@ function EditListing() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto max-w-2xl">
-        <Link
-          to="/my-listings"
-          className="text-sm font-semibold text-indigo-600"
-        >
-          ← Back to My Listings
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            to="/my-listings"
+            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            ← Back to My Listings
+          </Link>
+          <Link to="/" className="flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-indigo-600">
+            <img src="/logo.png" alt="MIT Mini Market Logo" className="h-6 w-6 object-contain" />
+            <span>MIT Mini Market</span>
+          </Link>
+        </div>
 
         <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
           <h1 className="text-3xl font-extrabold text-slate-900">

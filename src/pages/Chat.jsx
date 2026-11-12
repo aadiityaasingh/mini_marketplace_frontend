@@ -313,22 +313,35 @@ function Chat() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <header className="border-b bg-white px-5 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">
-              {otherPersonName || "Campus member"}
-            </h1>
+          <div className="flex items-center gap-3">
+            <Link to="/" title="MIT Mini Market" className="hover:opacity-80">
+              <img src="/logo.png" alt="MIT Mini Market Logo" className="h-9 w-9 object-contain" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">
+                {otherPersonName || "Campus member"}
+              </h1>
 
-            <p className="text-sm text-slate-500">
-              {conversation.product?.title || "Marketplace conversation"}
-            </p>
+              <p className="text-sm text-slate-500">
+                {conversation.product?.title || "Marketplace conversation"}
+              </p>
+            </div>
           </div>
 
-          <Link
-            to="/chats"
-            className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-          >
-            All chats
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/"
+              className="hidden sm:inline-block rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-slate-50 text-slate-600"
+            >
+              Marketplace
+            </Link>
+            <Link
+              to="/chats"
+              className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-slate-50 text-slate-700"
+            >
+              All chats
+            </Link>
+          </div>
         </div>
       </header>
 
